@@ -3,187 +3,320 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <meta name="theme-color" content="#0f172a" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <title>Pulse Habit Tracker</title>
+  <meta name="theme-color" content="#0b0f17" />
+  <title>Monthly Habit Tracker & Score Graph</title>
   
-  <!-- CDN Scripts for Styling & Charting -->
+  <!-- CDN Dependencies -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-  <!-- PWA Manifest Dynamic Injector -->
-  <script>
-    const manifest = {
-      name: "Pulse Habit Tracker",
-      short_name: "Pulse",
-      start_url: "./",
-      display: "standalone",
-      background_color: "#0f172a",
-      theme_color: "#0f172a",
-      icons: [{
-        src: "https://img.icons8.com/isometric-line/512/checked-checkbox.png",
-        sizes: "512x512",
-        type: "image/png"
-      }]
-    };
-    const stringManifest = JSON.stringify(manifest);
-    const blob = new Blob([stringManifest], {type: 'application/json'});
-    const manifestURL = URL.createObjectURL(blob);
-    const link = document.createElement('link');
-    link.rel = 'manifest';
-    link.href = manifestURL;
-    document.head.appendChild(link);
-  </script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
   <style>
     body {
-      background-color: #0f172a;
-      color: #f8fafc;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: #080c14;
+      color: #e2e8f0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       -webkit-tap-highlight-color: transparent;
     }
+    
+    /* Clean custom scrollbar for grid navigation */
     .custom-scrollbar::-webkit-scrollbar {
       height: 6px;
       width: 6px;
     }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #0d1321;
+    }
     .custom-scrollbar::-webkit-scrollbar-thumb {
-      background: #334155;
-      border-radius: 9999px;
+      background: #1e293b;
+      border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #06b6d4;
+    }
+
+    /* Grid & Cards */
+    .clean-card {
+      background: #101726;
+      border: 1px solid #1e293b;
+    }
+
+    /* Sticky column for mobile/tablet horizontal scrolling */
+    .sticky-col {
+      position: sticky;
+      left: 0;
+      z-index: 20;
+      background-color: #101726;
+    }
+
+    .cell-grid {
+      border-right: 1px solid #1a2333;
+      border-bottom: 1px solid #1a2333;
     }
   </style>
 </head>
-<body class="min-h-screen pb-12 antialiased">
+<body class="min-h-screen pb-12 antialiased selection:bg-cyan-500 selection:text-slate-950">
 
-  <!-- Header -->
-  <header class="sticky top-0 z-30 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-4 py-3">
-    <div class="max-w-xl mx-auto flex items-center justify-between">
-      <div class="flex items-center gap-2">
-        <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center font-bold text-white text-lg">P</div>
-        <h1 class="text-xl font-bold tracking-tight text-white">Pulse Tracker</h1>
+  <!-- Main Container (Responsive for Phone, Tablet, Laptop) -->
+  <div class="max-w-7xl mx-auto px-3 sm:px-6 py-4 space-y-4">
+
+    <!-- Top Header: Name, Title, Month (Matching Paper Sheet) -->
+    <header class="clean-card rounded-2xl p-4 sm:p-5 shadow-xl">
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        
+        <!-- Editable Name & Month -->
+        <div class="flex flex-wrap items-center gap-4 text-xs sm:text-sm">
+          <div class="flex items-center gap-2 border-b border-slate-700 pb-1">
+            <span class="font-bold text-slate-400 uppercase tracking-wider text-[11px]">Name:</span>
+            <input type="text" id="userNameInput" value="Arnab Mondal" placeholder="Your Name" 
+              class="bg-transparent text-cyan-400 font-bold focus:outline-none w-32 sm:w-44" onblur="saveUserName()" />
+          </div>
+
+          <div class="flex items-center gap-2 border-b border-slate-700 pb-1">
+            <span class="font-bold text-slate-400 uppercase tracking-wider text-[11px]">Month:</span>
+            <div class="flex items-center gap-1">
+              <button onclick="changeMonth(-1)" class="text-slate-400 hover:text-white px-1 font-bold">◀</button>
+              <span id="currentMonthLabel" class="font-bold text-white min-w-[100px] text-center">August 2026</span>
+              <button onclick="changeMonth(1)" class="text-slate-400 hover:text-white px-1 font-bold">▶</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sheet Title & Coach Badge -->
+        <div class="flex items-center justify-between lg:justify-end gap-3">
+          <div class="text-left lg:text-right">
+            <h1 class="text-base sm:text-lg font-black tracking-tight text-white uppercase">Monthly Habit Tracker</h1>
+            <p class="text-[10px] font-semibold text-emerald-400">Interactive Digital Protocol Sheet</p>
+          </div>
+
+          <div class="flex items-center gap-2 bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-xl">
+            <span class="text-lg">🧑‍🏫</span>
+            <div>
+              <div id="coachLevel" class="text-[10px] font-extrabold text-cyan-400">Lvl 1 Coach</div>
+              <div id="xpText" class="text-[9px] text-slate-400 font-bold">0 XP</div>
+            </div>
+          </div>
+        </div>
+
       </div>
-      <button onclick="openModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-sm px-3.5 py-1.5 rounded-lg transition-all active:scale-95">
-        + New Habit
-      </button>
-    </div>
-  </header>
+    </header>
 
-  <main class="max-w-xl mx-auto px-4 mt-6 space-y-6">
-
-    <!-- Month Navigation -->
-    <div class="flex items-center justify-between bg-slate-800/60 p-3 rounded-2xl border border-slate-700/50">
-      <button onclick="changeMonth(-1)" class="p-2 hover:bg-slate-700/50 rounded-xl transition text-slate-400 hover:text-white">
-        &#8592; Prev
-      </button>
-      <div id="currentMonthLabel" class="font-semibold text-lg text-indigo-400">August 2026</div>
-      <button onclick="changeMonth(1)" class="p-2 hover:bg-slate-700/50 rounded-xl transition text-slate-400 hover:text-white">
-        Next &#8594;
-      </button>
-    </div>
-
-    <!-- Overview Stats Cards -->
-    <div class="grid grid-cols-2 gap-3">
-      <div class="bg-slate-800/40 border border-slate-800 p-4 rounded-2xl">
-        <span class="text-xs text-slate-400 font-medium uppercase tracking-wider">This Week</span>
-        <div id="weeklyStat" class="text-2xl font-extrabold mt-1 text-emerald-400">0%</div>
-        <div id="weeklyComp" class="text-xs text-slate-400 mt-1">-- vs last week</div>
+    <!-- Interactive Coach Teacher Guidance Banner -->
+    <div class="clean-card rounded-xl p-3.5 flex items-center justify-between gap-3 border-cyan-500/30">
+      <div class="flex items-center gap-3 min-w-0">
+        <span class="text-xl flex-shrink-0">💡</span>
+        <p id="coachMessage" class="text-xs font-medium text-slate-200 truncate">
+          "Welcome! Click any box in the grid below to check off your daily protocols."
+        </p>
       </div>
-      <div class="bg-slate-800/40 border border-slate-800 p-4 rounded-2xl">
-        <span class="text-xs text-slate-400 font-medium uppercase tracking-wider">This Month</span>
-        <div id="monthlyStat" class="text-2xl font-extrabold mt-1 text-indigo-400">0%</div>
-        <div id="monthlyComp" class="text-xs text-slate-400 mt-1">-- vs last month</div>
+      <div class="flex items-center gap-2 flex-shrink-0">
+        <button onclick="getCoachTip()" class="text-[11px] font-bold text-cyan-400 bg-cyan-950/60 border border-cyan-800/60 hover:bg-cyan-900/60 px-3 py-1.5 rounded-lg transition active:scale-95">
+          Ask Advice
+        </button>
+        <button onclick="openModal()" class="text-[11px] font-bold text-slate-950 bg-gradient-to-r from-cyan-400 to-emerald-400 hover:opacity-90 px-3 py-1.5 rounded-lg transition active:scale-95">
+          + Add Habit
+        </button>
       </div>
     </div>
 
-    <!-- Habits Tracker Grid -->
-    <section>
-      <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400 mb-3">Habits Tracker</h2>
-      <div id="habitsContainer" class="space-y-3">
-        <!-- Dynamic Habit Rows Injected Here -->
+    <!-- MAIN TRACKER GRID TABLE (Matches Upper Table in Printable Image) -->
+    <section class="clean-card rounded-2xl overflow-hidden shadow-2xl">
+      <div class="overflow-x-auto custom-scrollbar">
+        <table class="w-full text-left border-collapse min-w-[900px]">
+          <thead>
+            <tr class="bg-slate-900/90 text-[11px] uppercase tracking-wider text-slate-400 border-b border-slate-800">
+              <th class="p-3 font-extrabold sticky-col border-r border-slate-800 min-w-[180px] sm:min-w-[220px]">
+                Habits / Protocols
+              </th>
+              <!-- Render Days 1 to 31 -->
+              <th id="dayHeaders" class="p-0">
+                <!-- Dynamically injected day headers 1..31 -->
+              </th>
+              <th class="p-2 text-center font-extrabold min-w-[50px] border-l border-slate-800">Done</th>
+            </tr>
+          </thead>
+          <tbody id="habitsTableBody" class="divide-y divide-slate-800/60 text-xs">
+            <!-- Dynamic Habit Rows Injected Here -->
+          </tbody>
+        </table>
       </div>
     </section>
 
-    <!-- Analytics Dashboard -->
-    <section class="bg-slate-800/30 border border-slate-800 rounded-2xl p-4 space-y-5">
-      <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400">Progress Reports</h2>
+    <!-- LOWER SECTION: SCORE GRAPH & DAILY TOTAL MATRIX (Matches Lower Section in Image) -->
+    <section class="grid grid-cols-1 lg:grid-cols-12 gap-4">
       
-      <!-- Weekly Chart -->
-      <div>
-        <h3 class="text-xs font-medium text-slate-300 mb-2">Weekly Completion Comparison</h3>
-        <div class="h-44">
-          <canvas id="weeklyChart"></canvas>
+      <!-- Daily Habits Score Line Graph (Left Side on Laptop, Stacked on Mobile) -->
+      <div class="lg:col-span-7 clean-card rounded-2xl p-4 space-y-3">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+          <div>
+            <h2 class="text-xs font-black uppercase tracking-wider text-cyan-400 flex items-center gap-2">
+              <span>📈</span> Daily Habits Score Graph
+            </h2>
+            <p class="text-[10px] text-slate-400">Total habits completed per day (1 to 31)</p>
+          </div>
+          <span id="averageScoreBadge" class="text-xs font-extrabold text-emerald-400 bg-emerald-950/40 border border-emerald-800/50 px-2.5 py-1 rounded-lg">
+            0 Avg/Day
+          </span>
+        </div>
+
+        <div class="h-52 sm:h-60 w-full pt-2">
+          <canvas id="scoreGraphChart"></canvas>
         </div>
       </div>
 
-      <!-- Monthly Chart -->
-      <div>
-        <h3 class="text-xs font-medium text-slate-300 mb-2">Monthly Completion Rate (%)</h3>
-        <div class="h-44">
-          <canvas id="monthlyChart"></canvas>
+      <!-- Done! Score Grid Table (Matches Right Side Table in Image) -->
+      <div class="lg:col-span-5 clean-card rounded-2xl p-4 space-y-3 flex flex-col justify-between">
+        <div>
+          <div class="border-b border-slate-800 pb-2 mb-3">
+            <h2 class="text-xs font-black uppercase tracking-wider text-emerald-400 flex items-center gap-2">
+              <span>🎯</span> Daily Score Matrix
+            </h2>
+            <p class="text-[10px] text-slate-400">Exact habit count completed for each day of the month</p>
+          </div>
+
+          <!-- Horizontal Scrollable Matrix of Completed Counts -->
+          <div class="overflow-x-auto custom-scrollbar pb-2">
+            <div id="dailyScoreGrid" class="flex gap-1 min-w-[600px] lg:min-w-0">
+              <!-- Dynamically Injected Daily Score Columns -->
+            </div>
+          </div>
         </div>
+
+        <!-- Famous James Clear Quote (Matching Bottom Left of Sheet) -->
+        <div class="pt-3 border-t border-slate-800/80 flex items-center justify-between gap-2">
+          <div class="text-[11px] italic font-medium text-slate-300">
+            "Success is the Product of Daily Habits"
+            <span class="block text-[10px] font-bold text-cyan-400 not-italic">— James Clear</span>
+          </div>
+          <button onclick="exportData()" title="Backup Json" class="text-[10px] font-bold text-slate-400 hover:text-white bg-slate-800 border border-slate-700 px-2.5 py-1.5 rounded-lg">
+            💾 Export
+          </button>
+        </div>
+
       </div>
+
     </section>
 
-  </main>
+  </div>
 
   <!-- Add Habit Modal -->
-  <div id="habitModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-sm p-5 space-y-4 shadow-2xl">
-      <h3 class="text-lg font-bold text-white">Add Custom Habit</h3>
-      <div>
-        <label class="text-xs font-medium text-slate-400 block mb-1">Habit Name</label>
-        <input type="text" id="habitNameInput" placeholder="e.g., Read 20 pages" class="w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-500" />
+  <div id="habitModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md hidden z-50 flex items-center justify-center p-4">
+    <div class="clean-card rounded-2xl w-full max-w-sm p-5 space-y-4 shadow-2xl bg-[#101726]">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+        <h3 class="text-xs font-black text-white uppercase tracking-wider">Add Protocol / Habit Goal</h3>
+        <button onclick="closeModal()" class="text-slate-400 hover:text-white text-base">✕</button>
       </div>
+
       <div>
-        <label class="text-xs font-medium text-slate-400 block mb-1">Theme Color</label>
-        <div class="flex gap-2" id="colorPicker">
-          <button type="button" onclick="selectColor('#6366f1')" class="color-btn w-8 h-8 rounded-full bg-indigo-500 ring-2 ring-white"></button>
-          <button type="button" onclick="selectColor('#10b981')" class="color-btn w-8 h-8 rounded-full bg-emerald-500"></button>
-          <button type="button" onclick="selectColor('#f59e0b')" class="color-btn w-8 h-8 rounded-full bg-amber-500"></button>
-          <button type="button" onclick="selectColor('#ec4899')" class="color-btn w-8 h-8 rounded-full bg-pink-500"></button>
-          <button type="button" onclick="selectColor('#06b6d4')" class="color-btn w-8 h-8 rounded-full bg-cyan-500"></button>
+        <label class="text-[11px] font-bold text-slate-400 block mb-1">Habit Name</label>
+        <input type="text" id="habitNameInput" placeholder="e.g. Read 20 Pages, Workout, Meditate" 
+          class="w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-cyan-400 transition" />
+      </div>
+
+      <div>
+        <label class="text-[11px] font-bold text-slate-400 block mb-1.5">Highlight Color</label>
+        <div class="flex gap-3" id="colorPicker">
+          <button type="button" onclick="selectColor(this, '#06b6d4')" class="color-btn w-7 h-7 rounded-full bg-cyan-500 ring-2 ring-white transition"></button>
+          <button type="button" onclick="selectColor(this, '#10b981')" class="color-btn w-7 h-7 rounded-full bg-emerald-500 transition"></button>
+          <button type="button" onclick="selectColor(this, '#f59e0b')" class="color-btn w-7 h-7 rounded-full bg-amber-500 transition"></button>
+          <button type="button" onclick="selectColor(this, '#3b82f6')" class="color-btn w-7 h-7 rounded-full bg-blue-500 transition"></button>
         </div>
       </div>
-      <div class="flex justify-end gap-2 pt-2">
-        <button onclick="closeModal()" class="px-4 py-2 text-sm text-slate-400 hover:text-white">Cancel</button>
-        <button onclick="saveHabit()" class="px-4 py-2 text-sm bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-medium">Save Habit</button>
+
+      <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
+        <button onclick="closeModal()" class="px-3.5 py-2 text-xs font-bold text-slate-400 hover:text-white">Cancel</button>
+        <button onclick="saveHabit()" class="px-4 py-2 text-xs bg-gradient-to-r from-cyan-400 to-emerald-400 text-slate-950 font-black rounded-xl shadow-lg active:scale-95 transition">
+          Add Protocol
+        </button>
       </div>
     </div>
   </div>
 
   <script>
-    // App State Management
-    let selectedColor = '#6366f1';
+    let selectedColor = '#06b6d4';
     let currentDate = new Date();
-    let habits = JSON.parse(localStorage.getItem('pulse_habits') || '[]');
-    let logs = JSON.parse(localStorage.getItem('pulse_logs') || '{}');
+    
+    // Core State (LocalStorage Persistence)
+    let habits = JSON.parse(localStorage.getItem('pulse_sheet_habits') || 'null');
+    if (!habits) {
+      habits = [
+        { id: 'h_1', name: '1. Morning Exercise / Gym', color: '#10b981' },
+        { id: 'h_2', name: '2. Deep Work & Study', color: '#06b6d4' },
+        { id: 'h_3', name: '3. Read 20 Pages Book', color: '#3b82f6' },
+        { id: 'h_4', name: '4. Drink 3L Water', color: '#f59e0b' },
+        { id: 'h_5', name: '5. Evening Meditation', color: '#10b981' }
+      ];
+      localStorage.setItem('pulse_sheet_habits', JSON.stringify(habits));
+    }
 
-    let weeklyChartInstance = null;
-    let monthlyChartInstance = null;
+    let logs = JSON.parse(localStorage.getItem('pulse_sheet_logs') || '{}');
+    let totalXp = parseInt(localStorage.getItem('pulse_sheet_xp') || '0', 10);
+    let userName = localStorage.getItem('pulse_sheet_user') || 'Arnab Mondal';
 
-    // Initialization
+    let scoreChartInstance = null;
+
+    // Web Audio Synthesizer
+    function playAudioTone(type) {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        if (type === 'complete') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(523.25, ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(659.25, ctx.currentTime + 0.12);
+          gain.gain.setValueAtTime(0.12, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.12);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.12);
+        }
+      } catch(e) {}
+    }
+
     window.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('userNameInput').value = userName;
       renderApp();
-      registerServiceWorker();
     });
 
+    function saveUserName() {
+      userName = document.getElementById('userNameInput').value.trim() || 'Arnab Mondal';
+      localStorage.setItem('pulse_sheet_user', userName);
+    }
+
     function saveState() {
-      localStorage.setItem('pulse_habits', JSON.stringify(habits));
-      localStorage.setItem('pulse_logs', JSON.stringify(logs));
+      localStorage.setItem('pulse_sheet_habits', JSON.stringify(habits));
+      localStorage.setItem('pulse_sheet_logs', JSON.stringify(logs));
+      localStorage.setItem('pulse_sheet_xp', totalXp.toString());
     }
 
-    function selectColor(color) {
+    function selectColor(btn, color) {
       selectedColor = color;
-      document.querySelectorAll('.color-btn').forEach(btn => btn.classList.remove('ring-2', 'ring-white'));
-      event.target.classList.add('ring-2', 'ring-white');
+      document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('ring-2', 'ring-white'));
+      btn.classList.add('ring-2', 'ring-white');
     }
 
-    function openModal() { document.getElementById('habitModal').classList.remove('hidden'); }
-    function closeModal() { document.getElementById('habitModal').classList.add('hidden'); }
+    function openModal() {
+      document.getElementById('habitModal').classList.remove('hidden');
+      document.getElementById('habitNameInput').focus();
+    }
+
+    function closeModal() {
+      document.getElementById('habitModal').classList.add('hidden');
+    }
 
     function saveHabit() {
-      const name = document.getElementById('habitNameInput').value.trim();
-      if (!name) return;
-      habits.push({ id: 'h_' + Date.now(), name, color: selectedColor });
+      const nameInput = document.getElementById('habitNameInput').value.trim();
+      if (!nameInput) return;
+      
+      const nextIndex = habits.length + 1;
+      const formattedName = `${nextIndex}. ${nameInput.replace(/^\d+\.\s*/, '')}`;
+
+      habits.push({ id: 'h_' + Date.now(), name: formattedName, color: selectedColor });
       document.getElementById('habitNameInput').value = '';
       saveState();
       closeModal();
@@ -191,8 +324,12 @@
     }
 
     function deleteHabit(id) {
-      if (confirm('Delete this habit and all its progress?')) {
+      if (confirm('Delete this habit protocol row?')) {
         habits = habits.filter(h => h.id !== id);
+        // re-index habit numbers
+        habits.forEach((h, idx) => {
+          h.name = `${idx + 1}. ${h.name.replace(/^\d+\.\s*/, '')}`;
+        });
         saveState();
         renderApp();
       }
@@ -203,9 +340,19 @@
       renderApp();
     }
 
-    function toggleHabitDay(habitId, dateStr) {
+    function toggleHabitCell(habitId, dateStr) {
       if (!logs[dateStr]) logs[dateStr] = {};
-      logs[dateStr][habitId] = !logs[dateStr][habitId];
+      const wasDone = logs[dateStr][habitId];
+      logs[dateStr][habitId] = !wasDone;
+
+      if (!wasDone) {
+        totalXp += 50;
+        playAudioTone('complete');
+        confetti({ particleCount: 20, spread: 50, origin: { y: 0.8 }, colors: ['#06b6d4', '#10b981'] });
+      } else {
+        totalXp = Math.max(0, totalXp - 50);
+      }
+
       saveState();
       renderApp();
     }
@@ -220,238 +367,222 @@
       return `${y}-${mm}-${dd}`;
     }
 
-    // Main Render Function
+    const coachTips = [
+      "Habit Stacking: Tie your habit to an existing anchor (e.g. 'After morning coffee, gym').",
+      "The 2-Minute Rule: Never optimize before you standardize. Start small every day!",
+      "Never Miss Twice: skippng 1 day is a mistake, skipping 2 days is a new habit.",
+      "Track standard, not perfection: Marking 80% of days leads to massive annual compounding."
+    ];
+
+    function getCoachTip() {
+      const tip = coachTips[Math.floor(Math.random() * coachTips.length)];
+      alert(`🧑‍🏫 COACH ADVICE:\n\n${tip}`);
+    }
+
     function renderApp() {
       const year = currentDate.getFullYear();
       const month = currentDate.getMonth();
+      const daysCount = getDaysInMonth(year, month);
       const monthName = currentDate.toLocaleString('default', { month: 'long' });
+
       document.getElementById('currentMonthLabel').innerText = `${monthName} ${year}`;
 
-      const daysCount = getDaysInMonth(year, month);
-      const container = document.getElementById('habitsContainer');
+      // Update XP / Level
+      const level = Math.floor(totalXp / 200) + 1;
+      document.getElementById('coachLevel').innerText = `Lvl ${level} Coach`;
+      document.getElementById('xpText').innerText = `${totalXp} XP`;
+
+      // 1. Render Table Day Headers (1 to 31)
+      let dayHeadersHtml = `<div class="flex">`;
+      for (let d = 1; d <= 31; d++) {
+        const isPastMonthDay = d > daysCount;
+        dayHeadersHtml += `
+          <div class="w-8 min-w-[2rem] py-2 text-center border-r border-slate-800 text-[10px] font-bold ${isPastMonthDay ? 'text-slate-700 bg-slate-950/40' : 'text-slate-300'}">
+            ${d}
+          </div>`;
+      }
+      dayHeadersHtml += `</div>`;
+      document.getElementById('dayHeaders').innerHTML = dayHeadersHtml;
+
+      // 2. Render Habit Rows Matrix
+      const tableBody = document.getElementById('habitsTableBody');
 
       if (habits.length === 0) {
-        container.innerHTML = `
-          <div class="text-center py-8 text-slate-500 border border-dashed border-slate-800 rounded-2xl">
-            No habits added yet. Click "+ New Habit" to start.
-          </div>`;
+        tableBody.innerHTML = `
+          <tr>
+            <td colspan="33" class="p-8 text-center text-slate-500 font-medium">
+              No habit protocols found. Click <strong>"+ Add Habit"</strong> above to populate your monthly tracker.
+            </td>
+          </tr>`;
       } else {
-        container.innerHTML = habits.map(habit => {
-          let monthCompletedCount = 0;
-          let daysHtml = '';
+        let rowsHtml = '';
 
-          for (let d = 1; d <= daysCount; d++) {
+        habits.forEach(habit => {
+          let rowCompletedCount = 0;
+          let cellsHtml = '';
+
+          for (let d = 1; d <= 31; d++) {
+            if (d > daysCount) {
+              // Non-existent day in month (e.g. Feb 30)
+              cellsHtml += `<div class="w-8 min-w-[2rem] h-9 bg-slate-950/60 border-r border-slate-800/60"></div>`;
+              continue;
+            }
+
             const dateStr = formatDate(year, month, d);
             const isDone = logs[dateStr] && logs[dateStr][habit.id];
-            if (isDone) monthCompletedCount++;
+            if (isDone) rowCompletedCount++;
 
-            daysHtml += `
-              <button onclick="toggleHabitDay('${habit.id}', '${dateStr}')" 
-                class="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-semibold transition-all ${
+            cellsHtml += `
+              <button onclick="toggleHabitCell('${habit.id}', '${dateStr}')" 
+                class="w-8 min-w-[2rem] h-9 flex items-center justify-center border-r border-slate-800/80 transition-all active:scale-90 ${
                   isDone 
-                  ? 'text-white shadow-sm scale-105' 
-                  : 'bg-slate-800/80 text-slate-500 hover:bg-slate-700'
+                  ? 'text-slate-950 font-black text-xs' 
+                  : 'hover:bg-slate-800/60 text-transparent'
                 }"
-                style="${isDone ? `background-color: ${habit.color}` : ''}">
-                ${d}
+                style="${isDone ? `background-color: ${habit.color};` : ''}">
+                ✓
               </button>`;
           }
 
-          const completionRate = Math.round((monthCompletedCount / daysCount) * 100);
-
-          return `
-            <div class="bg-slate-800/40 border border-slate-800 rounded-2xl p-3.5 space-y-3">
-              <div class="flex items-center justify-between">
-                <div class="flex items-center gap-2">
-                  <div class="w-3 h-3 rounded-full" style="background-color: ${habit.color}"></div>
-                  <span class="font-medium text-white text-sm">${habit.name}</span>
+          rowsHtml += `
+            <tr class="hover:bg-slate-900/40 transition">
+              <!-- Sticky Left Habit Title Column -->
+              <td class="p-2.5 font-bold text-white sticky-col border-r border-slate-800 flex items-center justify-between gap-2 min-w-[180px] sm:min-w-[220px]">
+                <div class="flex items-center gap-2 truncate">
+                  <span class="w-2 h-2 rounded-full flex-shrink-0" style="background-color: ${habit.color}"></span>
+                  <span class="truncate text-xs">${habit.name}</span>
                 </div>
-                <div class="flex items-center gap-3">
-                  <span class="text-xs text-slate-400 font-semibold">${completionRate}%</span>
-                  <button onclick="deleteHabit('${habit.id}')" class="text-slate-600 hover:text-rose-400 text-xs">✕</button>
+                <button onclick="deleteHabit('${habit.id}')" class="text-slate-600 hover:text-rose-400 text-xs px-1">✕</button>
+              </td>
+
+              <!-- 31 Days Checkboxes -->
+              <td class="p-0">
+                <div class="flex">
+                  ${cellsHtml}
                 </div>
-              </div>
-              <div class="flex gap-1.5 overflow-x-auto custom-scrollbar pb-1">
-                ${daysHtml}
-              </div>
-            </div>`;
-        }).join('');
-      }
+              </td>
 
-      updateStatsAndCharts(year, month);
-    }
-
-    // Analytics & Progress Reports
-    function updateStatsAndCharts(year, month) {
-      const today = new Date();
-      
-      // Calculate Weekly Progress
-      const curWeekData = getWeekStats(today, 0);
-      const prevWeekData = getWeekStats(today, -7);
-      
-      document.getElementById('weeklyStat').innerText = `${curWeekData.rate}%`;
-      const weekDiff = curWeekData.rate - prevWeekData.rate;
-      document.getElementById('weeklyComp').innerText = `${weekDiff >= 0 ? '+' : ''}${weekDiff}% vs last week`;
-      document.getElementById('weeklyComp').className = `text-xs mt-1 ${weekDiff >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
-
-      // Calculate Monthly Progress
-      const curMonthRate = getMonthRate(year, month);
-      const prevMonthDate = new Date(year, month - 1, 1);
-      const prevMonthRate = getMonthRate(prevMonthDate.getFullYear(), prevMonthDate.getMonth());
-      
-      document.getElementById('monthlyStat').innerText = `${curMonthRate}%`;
-      const monthDiff = curMonthRate - prevMonthRate;
-      document.getElementById('monthlyComp').innerText = `${monthDiff >= 0 ? '+' : ''}${monthDiff}% vs last month`;
-      document.getElementById('monthlyComp').className = `text-xs mt-1 ${monthDiff >= 0 ? 'text-indigo-400' : 'text-rose-400'}`;
-
-      // Render Charts
-      renderWeeklyChart(curWeekData.days, prevWeekData.days);
-      renderMonthlyChart(year, month);
-    }
-
-    function getWeekStats(referenceDate, offsetDays) {
-      const target = new Date(referenceDate);
-      target.setDate(target.getDate() + offsetDays);
-      const dayOfWeek = target.getDay(); // 0 is Sun
-      const monday = new Date(target);
-      monday.setDate(target.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
-
-      let totalPossible = habits.length * 7;
-      let totalDone = 0;
-      let days = [];
-
-      for (let i = 0; i < 7; i++) {
-        const d = new Date(monday);
-        d.setDate(monday.getDate() + i);
-        const dateStr = formatDate(d.getFullYear(), d.getMonth(), d.getDate());
-        
-        let dayDone = 0;
-        habits.forEach(h => {
-          if (logs[dateStr] && logs[dateStr][h.id]) dayDone++;
+              <!-- Total Row Completion Count -->
+              <td class="p-2 text-center font-extrabold text-cyan-400 border-l border-slate-800 bg-slate-900/30">
+                ${rowCompletedCount}
+              </td>
+            </tr>`;
         });
 
-        totalDone += dayDone;
-        days.push(dayDone);
+        tableBody.innerHTML = rowsHtml;
       }
 
-      const rate = totalPossible > 0 ? Math.round((totalDone / totalPossible) * 100) : 0;
-      return { rate, days };
+      // 3. Render Bottom Score Graph & Daily Score Grid
+      updateScoreGraphAndMatrix(year, month, daysCount);
     }
 
-    function getMonthRate(year, month) {
-      if (habits.length === 0) return 0;
-      const daysInM = getDaysInMonth(year, month);
-      let totalPossible = habits.length * daysInM;
-      let totalDone = 0;
+    function updateScoreGraphAndMatrix(year, month, daysCount) {
+      let dailyScores = [];
+      let totalCompletionsInMonth = 0;
 
-      for (let d = 1; d <= daysInM; d++) {
+      let scoreGridHtml = '';
+
+      for (let d = 1; d <= 31; d++) {
+        if (d > daysCount) {
+          dailyScores.push(0);
+          scoreGridHtml += `
+            <div class="flex-1 min-w-[2rem] text-center p-1 bg-slate-950/40 border border-slate-900 rounded-lg opacity-40">
+              <div class="text-[9px] font-bold text-slate-600">${d}</div>
+              <div class="text-xs font-black text-slate-700">-</div>
+            </div>`;
+          continue;
+        }
+
         const dateStr = formatDate(year, month, d);
+        let doneCount = 0;
+        
         if (logs[dateStr]) {
-          Object.values(logs[dateStr]).forEach(done => { if (done) totalDone++; });
+          habits.forEach(h => {
+            if (logs[dateStr][h.id]) doneCount++;
+          });
         }
-      }
-      return Math.round((totalDone / totalPossible) * 100);
-    }
 
-    function renderWeeklyChart(currentWeek, previousWeek) {
-      const ctx = document.getElementById('weeklyChart').getContext('2d');
-      if (weeklyChartInstance) weeklyChartInstance.destroy();
+        dailyScores.push(doneCount);
+        totalCompletionsInMonth += doneCount;
 
-      weeklyChartInstance = new Chart(ctx, {
-        type: 'bar',
-        data: {
-          labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-          datasets: [
-            {
-              label: 'This Week',
-              data: currentWeek,
-              backgroundColor: '#6366f1',
-              borderRadius: 6
-            },
-            {
-              label: 'Last Week',
-              data: previousWeek,
-              backgroundColor: '#334155',
-              borderRadius: 6
-            }
-          ]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: { legend: { labels: { color: '#94a3b8', font: { size: 10 } } } },
-          scales: {
-            x: { ticks: { color: '#64748b' }, grid: { display: false } },
-            y: { ticks: { color: '#64748b' }, grid: { color: '#1e293b' } }
-          }
-        }
-      });
-    }
-
-    function renderMonthlyChart(year, month) {
-      const ctx = document.getElementById('monthlyChart').getContext('2d');
-      if (monthlyChartInstance) monthlyChartInstance.destroy();
-
-      let labels = [];
-      let data = [];
-
-      for (let i = 5; i >= 0; i--) {
-        const d = new Date(year, month - i, 1);
-        labels.push(d.toLocaleString('default', { month: 'short' }));
-        data.push(getMonthRate(d.getFullYear(), d.getMonth()));
+        scoreGridHtml += `
+          <div class="flex-1 min-w-[2rem] text-center p-1 border border-slate-800/80 rounded-lg ${doneCount > 0 ? 'bg-cyan-950/30 border-cyan-800/50' : 'bg-slate-900/40'}">
+            <div class="text-[9px] font-bold text-slate-400">${d}</div>
+            <div class="text-xs font-black ${doneCount > 0 ? 'text-cyan-400' : 'text-slate-600'}">${doneCount}</div>
+          </div>`;
       }
 
-      monthlyChartInstance = new Chart(ctx, {
+      document.getElementById('dailyScoreGrid').innerHTML = scoreGridHtml;
+
+      const avgDaily = (totalCompletionsInMonth / daysCount).toFixed(1);
+      document.getElementById('averageScoreBadge').innerText = `${avgDaily} Avg/Day`;
+
+      // Draw Chart.js Line Graph (Matching the paper sheet's hand-drawn Score Graph)
+      renderScoreLineGraph(dailyScores, habits.length);
+    }
+
+    function renderScoreLineGraph(scoresArray, maxHabits) {
+      const ctx = document.getElementById('scoreGraphChart').getContext('2d');
+      if (scoreChartInstance) scoreChartInstance.destroy();
+
+      const labels = Array.from({ length: 31 }, (_, i) => i + 1);
+
+      scoreChartInstance = new Chart(ctx, {
         type: 'line',
         data: {
           labels: labels,
           datasets: [{
-            label: 'Completion %',
-            data: data,
-            borderColor: '#10b981',
-            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+            label: 'Daily Habits Score',
+            data: scoresArray,
+            borderColor: '#06b6d4',
+            backgroundColor: 'rgba(6, 182, 212, 0.12)',
             fill: true,
-            tension: 0.4
+            tension: 0.3,
+            borderWidth: 2.5,
+            pointRadius: 3,
+            pointHoverRadius: 6,
+            pointBackgroundColor: '#10b981',
+            pointBorderColor: '#080c14'
           }]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                title: (items) => `Day ${items[0].label}`,
+                label: (item) => `Completed: ${item.raw} / ${maxHabits} Habits`
+              }
+            }
+          },
           scales: {
-            x: { ticks: { color: '#64748b' }, grid: { display: false } },
-            y: { ticks: { color: '#64748b' }, grid: { color: '#1e293b' }, min: 0, max: 100 }
+            x: {
+              ticks: { color: '#64748b', font: { size: 9, weight: 'bold' } },
+              grid: { color: 'rgba(255,255,255,0.03)' }
+            },
+            y: {
+              min: 0,
+              max: Math.max(maxHabits, 5),
+              ticks: { precision: 0, color: '#64748b', font: { size: 10 } },
+              grid: { color: 'rgba(255,255,255,0.06)' }
+            }
           }
         }
       });
     }
 
-    // Offline Service Worker Registration
-    function registerServiceWorker() {
-      if ('serviceWorker' in navigator) {
-        const swCode = `
-          const CACHE_NAME = 'pulse-v1';
-          self.addEventListener('install', e => {
-            e.waitUntil(
-              caches.open(CACHE_NAME).then(cache => cache.addAll([
-                './',
-                'https://cdn.tailwindcss.com',
-                'https://cdn.jsdelivr.net/npm/chart.js'
-              ]))
-            );
-          });
-          self.addEventListener('fetch', e => {
-            e.respondWith(
-              caches.match(e.request).then(res => res || fetch(e.request))
-            );
-          });
-        `;
-        const blob = new Blob([swCode], { type: 'text/javascript' });
-        const swUrl = URL.createObjectURL(blob);
-        navigator.serviceWorker.register(swUrl).catch(() => {});
-      }
+    function exportData() {
+      const backupData = { habits, logs, totalXp, userName };
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `habit_tracker_${userName.toLowerCase().replace(/\s+/g, '_')}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
     }
   </script>
 </body>
 </html>
-
